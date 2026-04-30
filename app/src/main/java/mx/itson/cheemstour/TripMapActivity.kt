@@ -2,6 +2,10 @@ package mx.itson.cheemstour
 
 import android.os.Bundle
 import android.util.Log
+import android.widget.Button
+import android.widget.EditText
+import android.widget.Toast
+import android.location.Geocoder
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -9,6 +13,7 @@ import androidx.core.view.WindowInsetsCompat
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
@@ -23,18 +28,37 @@ import retrofit2.Response
 class TripMapActivity : AppCompatActivity(), OnMapReadyCallback {
 
     var map : GoogleMap? = null
+    private lateinit var editDestino: EditText
+    private lateinit var btnBuscar: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(layout.activity_trip_map)
+
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-        var mapFragment = supportFragmentManager.findFragmentById(id.maps) as SupportMapFragment
-        mapFragment.getMapAsync (this )
+
+
+        editDestino = findViewById(id.editDestino)
+        btnBuscar = findViewById(id.btnBuscar)
+
+        val mapFragment = supportFragmentManager.findFragmentById(id.maps) as SupportMapFragment
+        mapFragment.getMapAsync(this)
+
+
+        btnBuscar.setOnClickListener {
+            val destino = editDestino.text.toString()
+            if (destino.isNotEmpty()) {
+                buscarYMarcarDestino(destino)
+            } else {
+                Toast.makeText(this, "Escribe un destino", Toast.LENGTH_SHORT).show()
+            }
+        }
+
         getTrips()
     }
 
@@ -45,32 +69,49 @@ class TripMapActivity : AppCompatActivity(), OnMapReadyCallback {
                 call: Call<List<Trip>?>,
                 response: Response<List<Trip>?>
             ) {
-               if(response.isSuccessful)
-                response.body()?.forEach { t ->
-                    val latLng = LatLng(t.latitude, t.longitude)
-                    map?.addMarker(MarkerOptions().position(latLng).title(t.name)
-                        .icon(BitmapDescriptorFactory.fromResource(drawable.img)))
-                }
+                if(response.isSuccessful)
+                    response.body()?.forEach { t ->
+                        val latLng = LatLng(t.latitude, t.longitude)
+                        map?.addMarker(MarkerOptions().position(latLng).title(t.name)
+                            .icon(BitmapDescriptorFactory.fromResource(drawable.img)))
+                    }
             }
 
             override fun onFailure(
                 call: Call<List<Trip>?>,
                 t: Throwable
             ) {
-
             }
-            })
+        })
+    }
+
+    override fun onMapReady(googleMap: GoogleMap) {
+        try {
+            map = googleMap
+            map!!.mapType = GoogleMap.MAP_TYPE_NORMAL
+            getTrips()
+        } catch (ex: Exception) {
+            Log.e("Error loading map", ex.message.toString())
         }
+    }
 
 
-            override fun onMapReady(googleMap: GoogleMap) {
-                try {
-                    map = googleMap
-                    map!!.mapType = GoogleMap.MAP_TYPE_NORMAL
+    private fun buscarYMarcarDestino(destino: String) {
+        val geocoder = Geocoder(this)
+        val results = geocoder.getFromLocationName(destino, 1)
+        if (!results.isNullOrEmpty()) {
+            val location = results[0]
+            val latLng = LatLng(location.latitude, location.longitude)
 
-                    getTrips()
-                } catch (ex: Exception) {
-                    Log.e("Error loading map", ex.message.toString())
-                }
-            }
+            map?.addMarker(
+                MarkerOptions()
+                    .position(latLng)
+                    .title(destino)
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
+            )
+            map?.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 12f))
+        } else {
+            Toast.makeText(this, "Destino no existente", Toast.LENGTH_SHORT).show()
         }
+    }
+}
