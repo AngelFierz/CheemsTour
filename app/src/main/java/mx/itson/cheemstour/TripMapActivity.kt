@@ -111,7 +111,7 @@ class TripMapActivity : AppCompatActivity(), OnMapReadyCallback {
             )
             map?.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 12f))
         } else {
-            Toast.makeText(this, "Destino no existente", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Destino no existent", Toast.LENGTH_SHORT).show()
         }
     }
 }
